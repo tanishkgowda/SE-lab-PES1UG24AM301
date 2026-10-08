@@ -2,9 +2,9 @@
 GameEngine: owns the frog and all vehicles, and runs one frame's worth
 of game logic.
 
-Starter version: the frog can move, hop across the road, and reach the
-goal. Task 2 adds a 3-life system, a hit effect and respawn, and a
-Game Over state. Collision detection lives in game/collisions.py.
+Features: a 3-life system with a hit effect and respawn, a Game Over
+state, and goal/score tracking with a win state. Collision detection
+lives in game/collisions.py.
 """
 
 import random
@@ -22,6 +22,7 @@ LANE_SPEEDS = [1.5, -2, 2, -2.5, 1.5, -2]   # one entry per road row, alternatin
 
 STARTING_LIVES = 3
 HIT_DURATION_FRAMES = 45   # ~0.75 s at 60 FPS; the game logic is frame-based like vehicle speeds
+SCORE_PER_CROSSING = 100
 
 
 class GameEngine:
@@ -32,6 +33,8 @@ class GameEngine:
         self.lives = STARTING_LIVES
         self.hit_timer = 0          # frames left in the hit effect (0 = not being hit)
         self.game_over = False
+        self.score = 0
+        self.won = False
 
         start_col = GRID_COLS // 2
         self.frog = Frog(
@@ -69,13 +72,13 @@ class GameEngine:
                                               height=CELL_SIZE - 8, speed=speed))
 
     def handle_keydown(self, key):
-        # R always works: restarts the whole game with full lives.
+        # R always works: restarts the whole game with full lives and score 0.
         if key == pygame.K_r:
             self._build_entities()
             return
 
-        # No movement during the hit effect or after game over.
-        if self.game_over or self.hit_timer > 0:
+        # No movement during the hit effect, after game over, or after winning.
+        if self.game_over or self.won or self.hit_timer > 0:
             return
 
         if key == pygame.K_UP:
@@ -92,7 +95,8 @@ class GameEngine:
         for v in self.vehicles:
             v.update(road_width_px=WIDTH)
 
-        if self.game_over:
+        # After a win or game over: no collisions, no life changes.
+        if self.game_over or self.won:
             return
 
         # Hit effect running: no collision checks, then respawn when it ends.
@@ -110,8 +114,10 @@ class GameEngine:
                 self.hit_timer = HIT_DURATION_FRAMES
             return
 
+        # Goal reached: register the crossing, add score, end the game.
         if self.frog.row == GOAL_ROW:
-            self.frog.reset()
+            self.score += SCORE_PER_CROSSING
+            self.won = True
 
     def draw(self, surface, font):
         from game import renderer
@@ -123,11 +129,11 @@ class GameEngine:
                              self.frog.get_rect(CELL_SIZE), border_radius=6)
 
         renderer.draw_text(surface, font, f"Lives: {self.lives}", (10, 10))
+        renderer.draw_text(surface, font, f"Score: {self.score}", (WIDTH - 140, 10))
         renderer.draw_text(surface, font, "Arrow keys to move. R to restart.", (10, HEIGHT - 24))
 
+        # Banners are drawn last so nothing covers them.
         if self.game_over:
-            msg = "GAME OVER - press R to restart"
-            w, h = font.size(msg)
-            x, y = (WIDTH - w) // 2, HEIGHT // 2 - h // 2
-            pygame.draw.rect(surface, (0, 0, 0), (x - 12, y - 8, w + 24, h + 16))
-            renderer.draw_text(surface, font, msg, (x, y))
+            renderer.draw_banner(surface, "Game Over")
+        elif self.won:
+            renderer.draw_banner(surface, "You Won!")

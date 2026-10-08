@@ -49,7 +49,12 @@ def draw_text(surface, font, text, pos, color=COLOR_TEXT):
     surface.blit(font.render(text, True, color), pos)
 
 
-def draw_banner(surface, font, text):
-    surf = font.render(text, True, (255, 220, 80))
-    rect = surf.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2))
-    surface.blit(surf, rect)
+def draw_banner(surface, text, size=72, color=(255, 220, 80)):
+    """Large, centered message on a dark panel."""
+    big_font = pygame.font.Font(None, size)
+    label = big_font.render(text, True, color)
+    rect = label.get_rect(center=(surface.get_width() // 2, surface.get_height() // 2))
+    panel = rect.inflate(60, 40)
+    pygame.draw.rect(surface, (0, 0, 0), panel, border_radius=12)
+    pygame.draw.rect(surface, color, panel, width=3, border_radius=12)
+    surface.blit(label, rect)
